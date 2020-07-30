@@ -1,7 +1,11 @@
-/**
- * 
- */
-package com.weatherforecast.test;
+package com.weatherforecast.testng;
+
+import org.testng.annotations.Test;
+
+import com.weatherforecast.test.utils.TestUtils;
+
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.BeforeTest;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -12,92 +16,88 @@ import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.chrome.ChromeDriver;
+import org.testng.Assert;
+import org.testng.annotations.AfterTest;
 
-import com.weatherforecast.test.utils.TestUtils;
+public class TestngTC3 {
 
-/**
- * Verifying Summary data with hourly data Daily forecast should summarise the 3
- * hour data: Most dominant (or current) condition Most dominant (or current)
- * wind speed and direction Aggregate rainfall Minimum and maximum temperatures
- *
- */
-public class TestCase3 {
+	WebDriver driver = null;
+	List<WeatherForecastData> foreCastDataList = null;
 
-	/**
-	 * @param args
-	 * @throws InterruptedException
-	 */
+	
+	@DataProvider
+	public Object[][] forecastDataProvider() {
 
-	private static WebDriver driver = null;
+		if(foreCastDataList == null ){
+			
+			String rootElementPath = "//*[@id='root']/div";
 
-	public static void main(String[] args) throws InterruptedException {
+			foreCastDataList = new ArrayList<WeatherForecastData>();
+
+			boolean elementExist = true;
+			int i = 1;
+
+			while (elementExist) {
+
+				String summaryRowPath = rootElementPath + "/div[" + i + "]/div[1]/span[1]";
+				WebElement summaryRowSpan = null;
+
+				try {
+					summaryRowSpan = driver.findElement(By.xpath(summaryRowPath));
+				} catch (Exception exception) {
+
+				}
+
+				if (summaryRowSpan != null) {
+					// Expands
+					summaryRowSpan.click();
+					WeatherForecastData forecastData = new WeatherForecastData();
+					readForecastdata(forecastData, i);
+					foreCastDataList.add(forecastData);
+					try {
+						Thread.sleep(1000);
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+					}
+					// Collapses
+					summaryRowSpan.click();
+					try {
+						Thread.sleep(1000);
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+					}
+					i++;
+				} else {
+					elementExist = false;
+				}
+
+			}
+		}
 		
-		setUp();
-		driver.get("http://localhost:3000/");
-		executeTests();
-		
+
+		Object[][] forecastData = new Object[foreCastDataList.size()][2];
+
+		for (int i = 0; i < foreCastDataList.size(); i++) {
+			forecastData[i][0] = i;
+			forecastData[i][1] = foreCastDataList.get(i);
+		}
+
+		return forecastData;
 	}
 
-	private static void setUp() {
+	@BeforeTest
+	public void setUp() {
 		System.setProperty("webdriver.chrome.driver", TestUtils.getDriverPath("driver.chrome.path"));
-		driver = new ChromeDriver();		
+		driver = new ChromeDriver();
+		driver.get("http://localhost:3000/");
 	}
 
-	private static void executeTests() throws InterruptedException {
-		
-		String rootElementPath = "//*[@id='root']/div";
-
-		boolean elementExist = true;
-		int i = 1;
-
-		while (elementExist) {
-
-			String summaryRowPath = rootElementPath + "/div[" + i + "]/div[1]/span[1]";
-			WebElement summaryRowSpan = null;
-
-			try {
-				summaryRowSpan = driver.findElement(By.xpath(summaryRowPath));
-			} catch (Exception exception) {
-
-			}
-
-			if (summaryRowSpan != null) {
-				//Expands
-				summaryRowSpan.click();
-				WeatherForecastData forecastData = new WeatherForecastData();
-				readForecastdata(forecastData, i);
-				String day = driver.findElement(By.xpath(summaryRowPath + "/span[1]")).getText();
-				String date = driver.findElement(By.xpath(summaryRowPath + "/span[2]")).getText();
-				System.out.println("Test Results For Summary for day :" + (day + " " + date));
-				boolean isValidHourlyData = validateHourlyData(forecastData);
-
-				boolean isValidSummaryTemp = validateTemperature(forecastData);
-
-				boolean isValidSummaryWindSpeed = validateWindSpeed(forecastData);
-				boolean isValidSummaryRainFall = validateSummaryRainFall(forecastData);
-
-				boolean isValidSummaryPressure = validateSummaryPressure(forecastData);
-				
-				logTestCaseResultMessage("Hourly data Test Case", isValidHourlyData);
-				logTestCaseResultMessage("Temperature Data Test case", isValidSummaryTemp);
-				logTestCaseResultMessage("Windspeed Test case", isValidSummaryWindSpeed);
-				logTestCaseResultMessage("Rainfall Test case", isValidSummaryRainFall);
-				logTestCaseResultMessage("Pressure Test case", isValidSummaryPressure);
-				System.out.println("");
-				
-				Thread.sleep(1000);
-				//Collapses
-				summaryRowSpan.click();
-				Thread.sleep(1000);
-				i++;
-			} else {
-				elementExist = false;
-			}
-
-		}		
+	@AfterTest
+	public void closeBrowser() {
+		driver.close();
 	}
 
-	private static void readForecastdata(WeatherForecastData forecastData, int elementIndex) {
+	private void readForecastdata(WeatherForecastData forecastData, int elementIndex) {
 
 		// Reading Summary
 		WebElement summaryMaxTempElem = driver
@@ -111,17 +111,18 @@ public class TestCase3 {
 		String currentMinTemp = summaryMinTempElem.getText();
 		currentMinTemp = currentMinTemp.substring(0, currentMinTemp.length() - 1);
 
-		forecastData.setMaxTemp(Integer.parseInt(currentMaxTemp));
-		forecastData.setMinTemp(Integer.parseInt(currentMinTemp));
+		
+		forecastData.setMaxTemp((int)Math.floor(Double.parseDouble(currentMaxTemp)));
+		forecastData.setMinTemp((int)Math.floor(Double.parseDouble(currentMinTemp)));
 
-		// Reading Summary2L ;K'
+		// Reading Summary
 		WebElement summaryWindSpeed = driver
 				.findElement(By.xpath("//*[@id='root']/div/div[" + elementIndex + "]/div[1]/span[4]/span[1]"));
 
 		String currentWindSpeed = summaryWindSpeed.getText();
 		currentWindSpeed = currentWindSpeed.substring(0, currentWindSpeed.length() - 3);
 
-		forecastData.setMaxWindspeed(Integer.parseInt(currentWindSpeed));
+		forecastData.setWindspeed((int)Math.floor(Double.parseDouble(currentWindSpeed)));
 
 		// Reading Summary
 		WebElement summaryRainFallElem = driver
@@ -130,14 +131,14 @@ public class TestCase3 {
 		String summaryRainFall = summaryRainFallElem.getText();
 		summaryRainFall = summaryRainFall.substring(0, summaryRainFall.length() - 2);
 
-		forecastData.setAggregatedRainFall(Integer.parseInt(summaryRainFall));
+		forecastData.setAggregatedRainFall((int)Math.floor(Double.parseDouble(summaryRainFall)));
 
 		WebElement summaryPressueElem = driver
 				.findElement(By.xpath("//*[@id='root']/div/div[" + elementIndex + "]/div[1]/span[5]/span[2]"));
 		String summaryPressure = summaryPressueElem.getText();
 		summaryPressure = summaryPressure.substring(0, summaryPressure.length() - 2);
 
-		forecastData.setMaxPressure(Integer.parseInt(summaryPressure));
+		forecastData.setPressure((int)Math.floor(Double.parseDouble(summaryPressure)));
 
 		int i = 1;
 		boolean detailElementExist = true;
@@ -155,7 +156,7 @@ public class TestCase3 {
 			if (detailElement != null) {
 
 				String hourInfo = driver.findElement(By.xpath(detailElementPath + "/span[1]/span")).getText();
-				forecastData.getHourInformation().add(Integer.parseInt(hourInfo));
+				forecastData.getHourInformation().add((int)Math.floor(Double.parseDouble(hourInfo)));
 
 				String maxTemp = driver.findElement(By.xpath(detailElementPath + "/span[3]/span[1]")).getText();
 				maxTemp = maxTemp.substring(0, maxTemp.length() - 1);
@@ -163,20 +164,20 @@ public class TestCase3 {
 				String minTemp = driver.findElement(By.xpath(detailElementPath + "/span[3]/span[2]")).getText();
 				minTemp = minTemp.substring(0, minTemp.length() - 1);
 
-				forecastData.getHourlyMaxTemp().add(Integer.parseInt(maxTemp));
-				forecastData.getHourlyMinTemp().add(Integer.parseInt(minTemp));
+				forecastData.getHourlyMaxTemp().add((int)Math.floor(Double.parseDouble(maxTemp)));
+				forecastData.getHourlyMinTemp().add((int)Math.floor(Double.parseDouble(minTemp)));
 
 				String windSpeed = driver.findElement(By.xpath(detailElementPath + "/span[4]/span[1]")).getText();
 				windSpeed = windSpeed.substring(0, windSpeed.length() - 3);
-				forecastData.getHourlyWindSpeed().add(Integer.parseInt(windSpeed));
+				forecastData.getHourlyWindSpeed().add((int)Math.floor(Double.parseDouble(windSpeed)));
 
 				String rainFall = driver.findElement(By.xpath(detailElementPath + "/span[5]/span[1]")).getText();
 				rainFall = rainFall.substring(0, rainFall.length() - 2);
-				forecastData.getHourlyRainFall().add(Integer.parseInt(rainFall));
+				forecastData.getHourlyRainFall().add((int)Math.floor(Double.parseDouble(rainFall)));
 
 				String pressure = driver.findElement(By.xpath(detailElementPath + "/span[5]/span[2]")).getText();
 				pressure = pressure.substring(0, pressure.length() - 2);
-				forecastData.getHourlyPressure().add(Integer.parseInt(pressure));
+				forecastData.getHourlyPressure().add((int)Math.floor(Double.parseDouble(pressure)));
 
 			} else {
 				detailElementExist = false;
@@ -187,20 +188,24 @@ public class TestCase3 {
 
 	}
 
-
-	private static boolean validateSummaryPressure(WeatherForecastData forecastData) {
+	@Test(dataProvider = "forecastDataProvider")
+	public void validateSummaryPressure(Integer i, WeatherForecastData forecastData) {
+		
+		Boolean passed = false;
 		List<Integer> hourlyPressure = forecastData.getHourlyPressure();
 
-		int currentMaxpressure = Collections.max(hourlyPressure);
+		
 
-		if (forecastData.getMaxPressure() == currentMaxpressure) {
-			return true;
+		if (forecastData.getPressure() == hourlyPressure.get(0)) {
+			passed =  Boolean.TRUE;
 		}
-		return false;
+		Assert.assertEquals(passed, Boolean.TRUE);
 	}
 
-	private static boolean validateHourlyData(WeatherForecastData forecastData) {
+	@Test(dataProvider = "forecastDataProvider")
+	public void validateHourlyData(Integer i, WeatherForecastData forecastData) {
 
+		Boolean passed = Boolean.TRUE;
 		// it has all the hour information in screen rendering order, hence we
 		// can compare previous to current.
 		List<Integer> hourlyInfo = forecastData.getHourInformation();
@@ -210,16 +215,19 @@ public class TestCase3 {
 				prevHourInfo = hourInfo;
 			} else {
 				if ((hourInfo - prevHourInfo) != 300) {
-					return false;
+					passed = Boolean.FALSE;
+					break;
 				}
 
 				prevHourInfo = hourInfo;
 			}
 		}
-		return true;
+		Assert.assertEquals(passed, Boolean.TRUE);
 	}
 
-	private static boolean validateSummaryRainFall(WeatherForecastData forecastData) {
+	@Test(dataProvider = "forecastDataProvider")
+	public void validateSummaryRainFall(Integer i, WeatherForecastData forecastData) {
+		Boolean passed = Boolean.FALSE;
 		List<Integer> hourlyRainFall = forecastData.getHourlyRainFall();
 		int currentAggrRainFall = 0;
 
@@ -228,29 +236,34 @@ public class TestCase3 {
 		}
 
 		if (forecastData.getAggregatedRainFall() == currentAggrRainFall) {
-			return true;
+			passed = Boolean.TRUE;
 		}
-		return false;
+		Assert.assertEquals(passed, Boolean.TRUE);
 	}
 
-	private static boolean validateWindSpeed(WeatherForecastData forecastData) {
+	@Test(dataProvider = "forecastDataProvider")
+	public void validateWindSpeed(Integer i, WeatherForecastData forecastData) {
+		Boolean passed = Boolean.FALSE;
 		List<Integer> hourlyWindSpeed = forecastData.getHourlyWindSpeed();
 
-	//	int currentMaxWindSpeed = Collections.max(hourlyWindSpeed);
+		// int currentMaxWindSpeed = Collections.max(hourlyWindSpeed);
 
-		if (forecastData.getMaxWindspeed() == hourlyWindSpeed.get(0)) {
-			return true;
+		if (forecastData.getWindspeed() == hourlyWindSpeed.get(0)) {
+			passed = Boolean.TRUE;
 		}
-		return false;
+		Assert.assertEquals(passed, Boolean.TRUE);
 	}
 
-	private static boolean validateTemperature(WeatherForecastData forecastData) {
+	@Test(dataProvider = "forecastDataProvider")
+	public void validateTemperature(Integer i, WeatherForecastData forecastData) {
+		
+		Boolean passed = Boolean.TRUE;
 		List<Integer> hourlyMaxTemp = forecastData.getHourlyMaxTemp();
 
 		int maxTemp = Collections.max(hourlyMaxTemp);
 
 		if (forecastData.getMaxTemp() != maxTemp) {
-			return false;
+			passed = Boolean.FALSE;
 		}
 
 		List<Integer> hourlyMinTemp = forecastData.getHourlyMinTemp();
@@ -258,13 +271,9 @@ public class TestCase3 {
 		int minTemp = Collections.min(hourlyMinTemp);
 
 		if (forecastData.getMinTemp() != minTemp) {
-			return false;
+			passed = Boolean.FALSE;
 		}
-		return true;
-	}
-	
-	public static void logTestCaseResultMessage(String message, boolean passed){
-		System.out.println(message + " : " + ( passed ? "Passed" : "Failed"));
+		Assert.assertEquals(passed, Boolean.TRUE);
 	}
 
 }
@@ -274,10 +283,10 @@ class WeatherForecastData {
 	private Date date;
 	private int maxTemp;
 	private int minTemp;
-	private int maxWindspeed;
+	private int windspeed;
 	private int maxWindspeedDirection;
 	private int aggregatedRainFall;
-	private int maxPressure;
+	private int pressure;
 
 	private List<Integer> hourlyMaxTemp = new ArrayList<Integer>();
 	private List<Integer> hourlyMinTemp = new ArrayList<Integer>();;
@@ -312,13 +321,6 @@ class WeatherForecastData {
 		this.minTemp = minTemp;
 	}
 
-	public int getMaxWindspeed() {
-		return maxWindspeed;
-	}
-
-	public void setMaxWindspeed(int maxWindspeed) {
-		this.maxWindspeed = maxWindspeed;
-	}
 
 	public int getMaxWindspeedDirection() {
 		return maxWindspeedDirection;
@@ -336,13 +338,6 @@ class WeatherForecastData {
 		this.aggregatedRainFall = aggregatedRainFall;
 	}
 
-	public int getMaxPressure() {
-		return maxPressure;
-	}
-
-	public void setMaxPressure(int maxPressure) {
-		this.maxPressure = maxPressure;
-	}
 
 	public List<Integer> getHourlyWindSpeed() {
 		return hourlyWindSpeed;
@@ -391,6 +386,21 @@ class WeatherForecastData {
 	public void setHourlyRainFall(List<Integer> hourlyRainFall) {
 		this.hourlyRainFall = hourlyRainFall;
 	}
-	
+
+	public int getWindspeed() {
+		return windspeed;
+	}
+
+	public void setWindspeed(int windspeed) {
+		this.windspeed = windspeed;
+	}
+
+	public int getPressure() {
+		return pressure;
+	}
+
+	public void setPressure(int pressure) {
+		this.pressure = pressure;
+	}
 
 }

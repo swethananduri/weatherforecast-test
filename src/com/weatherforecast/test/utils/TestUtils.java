@@ -9,6 +9,14 @@ import java.util.Properties;
 
 public class TestUtils {
 
+    public static void main(String ar[]){
+    	Object[][] A=	new Object[][] { new Object[] { 1, "Glasgow" }, new Object[] { 2, "Aberdeen"} , new Object[] { 3, "Hyderabad"}};
+    	for(int i=0; i<3; i++){
+    		for(int j=0; j<2; j++){
+    			System.out.println(A[i][j]);
+    		}
+    	}
+    }
 	public static String getDriverPath(String key) {
 		try {
 			return TestProps.instance().readProp(key);
@@ -36,7 +44,7 @@ class TestProps {
 			props = new Properties();
 			props.load(in);
 		}
-
+     
 		return testProps;
 	}
 	
